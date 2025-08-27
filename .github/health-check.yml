@@ -43,3 +43,13 @@ jobs:
           author_name: 헬스 체크 실패
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: 알림 전송 (성공 시)
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: "서버가 정상적으로 동작 중입니다. ✅"
+          author_name: 헬스 체크 성공
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
