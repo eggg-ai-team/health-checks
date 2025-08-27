@@ -1,0 +1,45 @@
+name: 서버 헬스 체크
+
+on:
+  schedule:
+    # 매시간마다 실행 (UTC 기준)
+    - cron: '*/15 * * * *'
+  workflow_dispatch:  # 수동 실행 옵션 추가
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 서버 상태 확인
+        id: health_check
+        uses: fjogeleit/http-request-action@v1
+        with:
+          url: ${{ secrets.HEALTH_CHECK_URL }}
+          method: 'GET'
+          timeout: 10000
+      
+      - name: 응답 확인
+        run: |
+          echo "상태 코드: ${{ steps.health_check.outputs.status }}"
+          echo "응답 내용: ${{ steps.health_check.outputs.response }}"
+          
+          # 응답 상태 확인 (JSON에서 status 필드 추출)
+          RESPONSE='${{ steps.health_check.outputs.response }}'
+          STATUS=$(echo $RESPONSE | jq -r '.status')
+          
+          if [[ "${{ steps.health_check.outputs.status }}" != "200" || "$STATUS" != "up" ]]; then
+            echo "::error::서버 상태 확인 실패! 응답 코드: ${{ steps.health_check.outputs.status }}, 상태: $STATUS"
+            exit 1
+          else
+            echo "::notice::서버가 정상적으로 동작 중입니다."
+          fi
+      
+      - name: 알림 전송 (실패 시)
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: "서버 상태 확인에 실패했습니다. 서버를 확인해주세요."
+          author_name: 헬스 체크 실패
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
